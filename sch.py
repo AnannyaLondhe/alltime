@@ -1,10 +1,10 @@
-as_of_dates = fn_get_as_of_dt(autosys_schema, sql_main[i][2])
+def get_date_range(start_date_str, end_date_str):
+    start_date = datetime.strptime(start_date_str, "%d-%b-%Y")
+    end_date = datetime.strptime(end_date_str, "%d-%b-%Y")
+    date_list = []
 
-for v_as_of_dt in as_of_dates:
-    # your existing logic here
-    # e.g., skip weekend check
-    v_weekend_check = sql_main[i][19]
-    if is_weekend(v_as_of_dt) and v_weekend_check == 1:
-        lg.dfnLogSTDout(f"Skipping validation for weekend date: {v_as_of_dt}")
-        continue
-    # ... and so on for rest of your logic
+    while start_date <= end_date:
+        date_list.append(start_date.strftime('%d-%b-%Y'))
+        start_date += timedelta(days=1)
+    
+    return date_list
