@@ -1,15 +1,10 @@
-elif v_db_schema == 'AML':
-    sql_as_of_dt = (f"""
-        SELECT date_value 
-        FROM aml.t_aml_application_date 
-        WHERE date_id = '{v_date_id}' 
-        AND date_value BETWEEN TO_DATE('{from_date_str}', 'DD-MON-YYYY') 
-                          AND TO_DATE('{to_date_str}', 'DD-MON-YYYY') 
-        ORDER BY date_value
-    """)
-    
-    cur.execute(sql_as_of_dt)
-    v_as_of_dt_rows = cur.fetchall()
-    v_as_of_dt_list = [row[0].strftime('%d-%b-%Y') for row in v_as_of_dt_rows]
+as_of_dates = fn_get_as_of_dt(autosys_schema, sql_main[i][2])
 
-    return v_as_of_dt_list
+for v_as_of_dt in as_of_dates:
+    # your existing logic here
+    # e.g., skip weekend check
+    v_weekend_check = sql_main[i][19]
+    if is_weekend(v_as_of_dt) and v_weekend_check == 1:
+        lg.dfnLogSTDout(f"Skipping validation for weekend date: {v_as_of_dt}")
+        continue
+    # ... and so on for rest of your logic
