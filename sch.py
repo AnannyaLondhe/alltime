@@ -1,10 +1,4 @@
-def get_date_range(start_date_str, end_date_str):
-    start_date = datetime.strptime(start_date_str, "%d-%b-%Y")
-    end_date = datetime.strptime(end_date_str, "%d-%b-%Y")
-    date_list = []
-
-    while start_date <= end_date:
-        date_list.append(start_date.strftime('%d-%b-%Y'))
-        start_date += timedelta(days=1)
-    
-    return date_list
+if autosys_schema == 'AML':
+    date_range = get_date_range(from_date_str, to_date_str)
+else:
+    date_range = fn_get_as_of_dt(autosys_schema, sql_main[i][2], from_date_str, to_date_str)
