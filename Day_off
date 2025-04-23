@@ -1,0 +1,31 @@
+def is_non_working_day(date_string, etl_tenant):
+    try:
+        dt_obj = datetime.strptime(date_string, '%d-%b-%Y')
+        is_weekend = dt_obj.weekday() >= 5  # 5 = Saturday, 6 = Sunday
+
+        # Check for US or CA holiday
+        holiday_sql = ""
+        if etl_tenant.upper() == 'US':
+            holiday_sql = f"""
+                SELECT COUNT(*) FROM DWADMIN.V_SOURCE_DAY_OFF 
+                WHERE appl_cd = 'AT2' AND day_off = TO_DATE('{date_string}', 'DD-MON-YYYY')
+            """
+        elif etl_tenant.upper() == 'CA':
+            holiday_sql = f"""
+                SELECT COUNT(*) FROM AMLCA.INFOCCA_TA004 
+                WHERE A0020 = 5 AND A0370 = TO_DATE('{date_string}', 'DD-MON-YYYY')
+            """
+
+        if holiday_sql:
+            cur.execute(holiday_sql)
+            holiday_count = cur.fetchone()[0]
+        else:
+            holiday_count = 0
+
+        is_holiday = holiday_count > 0
+
+        return is_weekend or is_holiday
+
+    except Exception as e:
+        lg.dfnLogSTDout(f"Error checking non-working day for {date_string}: {str(e)}")
+        return False
