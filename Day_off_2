@@ -1,0 +1,45 @@
+def is_non_working_day(date_string, etl_tenant):
+    try:
+        dt_obj = datetime.strptime(date_string, '%d-%b-%Y')
+        is_weekend = dt_obj.weekday() >= 5  # 5 = Saturday, 6 = Sunday
+        is_holiday = False
+        v_count = 0
+
+        if etl_tenant.upper() == 'US':
+            sql = f"""
+                DECLARE
+                    v_count NUMBER;
+                BEGIN
+                    SELECT COUNT(*) INTO v_count 
+                    FROM DWADMIN.V_SOURCE_DAY_OFF 
+                    WHERE appl_cd = 'AT2' 
+                      AND day_off = TO_DATE('{date_string}', 'DD-MON-YYYY');
+                    :result := v_count;
+                END;
+            """
+        elif etl_tenant.upper() == 'CA':
+            sql = f"""
+                DECLARE
+                    v_count NUMBER;
+                BEGIN
+                    SELECT COUNT(*) INTO v_count 
+                    FROM AMLCA.INFOCCA_TA004 
+                    WHERE A0020 = 5 
+                      AND A0370 = TO_DATE('{date_string}', 'DD-MON-YYYY');
+                    :result := v_count;
+                END;
+            """
+        else:
+            return is_weekend  # Unknown tenant, check only weekend
+
+        # Bind result variable
+        result = cur.var(int)
+        cur.execute(sql, result=result)
+        v_count = result.getvalue()
+        is_holiday = v_count > 0
+
+        return is_weekend or is_holiday
+
+    except Exception as e:
+        lg.dfnLogSTDout(f"Error checking non-working day for {date_string}: {str(e)}")
+        return False
