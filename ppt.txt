@@ -1,0 +1,40 @@
+✅ Key Projects & Contributions
+1. Automated Dashboards for Data Validation – INFOC-AML
+
+Addressed the lack of visibility into monthly data volumes.
+
+Built an automated pipeline using Python + Matplotlib.
+
+Processes validation results and generates HTML reports with visual plots per rule.
+
+Scheduled for monthly execution – helps track trends & detect anomalies.
+
+2. TP-API Setup Support
+
+Assisted in deployment in the non-production environment.
+
+Contributed to email automation post-ingestion to alert respective distribution lists.
+
+3. Pre-ETL Validation Enhancements
+
+Prepared insert scripts for configuration tables.
+
+Developed a function to handle holiday/day-off checks in ETL scripts.
+
+Contributed to TSD documentation for process clarity.
+
+4. KDE & KPI Scripts
+
+Performed validation and testing of KDE queries.
+
+Supported data insertion into KDE tracking systems.
+
+🌱 Key Learnings
+Improved proficiency in Python scripting, automation, and data visualization.
+
+Gained hands-on experience in deployment cycles, ETL validation, and production-readiness.
+
+Enhanced understanding of documentation standards and collaboration workflows in a production environment.
+
+Learned how to contribute to scalable solutions that improve data transparency and operational efficiency.
+
