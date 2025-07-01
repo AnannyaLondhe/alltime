@@ -1,0 +1,21 @@
+Feature
+Star Schema
+Snowflake Schema
+1. Structure
+Central fact table is directly connected to dimension tables.
+Dimension tables are normalized into related tables, forming a snowflake-like structure.
+2. Complexity
+Simpler to design and understand as it involves fewer joins and tables.
+More complex due to a higher number of tables and joins.
+3. Query Performance
+Typically better performance due to fewer joins.
+Slower performance because of multiple joins.
+4. Scalability
+Less scalable as complexity increases with more dimensions and measures.
+More scalable and can handle large, complex datasets.
+5. Manageability
+Difficult to manage as the number of dimensions increases.
+Easier to manage complex datasets with normalized structure.
+6. Storage
+Requires less storage due to fewer and simpler tables.
+Requires more storage because of normalization and more tables.
