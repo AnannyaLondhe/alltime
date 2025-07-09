@@ -1,0 +1,23 @@
+import pandas as pd
+
+def explode_kyc_activities(df: pd.DataFrame, col_index: int) -> pd.DataFrame:
+    col_name = df.columns[col_index]
+
+    # Attach index to preserve original row mapping (optional)
+    df = df.reset_index().rename(columns={'index': 'original_row_id'})
+
+    # Explode the column
+    df_exploded = df.explode(col_name)
+
+    # Extract fields from each dict (kycSection and kycActivityPercentage)
+    df_exploded['kycSection'] = df_exploded[col_name].apply(
+        lambda x: x.get('kycSection') if isinstance(x, dict) else None
+    )
+    df_exploded['kycActivityPercentage'] = df_exploded[col_name].apply(
+        lambda x: x.get('kycActivityPercentage') if isinstance(x, dict) else None
+    )
+
+    # Optional: drop the original JSON column
+    df_exploded = df_exploded.drop(columns=[col_name])
+
+    return df_exploded
