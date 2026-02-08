@@ -1,0 +1,116 @@
+def generate_excel_report(self, results):
+    import pandas as pd
+
+    combined_frames = []
+
+    # Safety check
+    if not results:
+        print("❌ Results dict is empty. No data to process.")
+        return
+
+    for db_key, db_data in results.items():
+
+        # --- Metadata ---
+        meta_bl = db_data.get('BL')
+        meta_feed = db_data.get('Feed')
+        meta_region = db_data.get('Region')
+
+        # Debug (remove after validation)
+        print(f"Processing DB: {db_key} | BL={meta_bl} | Feed={meta_feed} | Region={meta_region}")
+
+        # --- Combine ONLY CM Payments (US + CA) ---
+        if (
+            str(meta_bl).upper() == 'CM' and
+            str(meta_feed).lower() == 'payments'
+        ):
+
+            data = db_data.get('Data', {})
+            received = data.get('Received', [])
+            monitored = data.get('Monitored', [])
+
+            # Skip if no data
+            if not received and not monitored:
+                print(f"⚠️ No data found for {db_key}")
+                continue
+
+            # --- Received DataFrame ---
+            if received:
+                df_rec = pd.DataFrame(
+                    received,
+                    columns=['BL', 'BU', 'MONTH', 'SOURCE_DATA_CNT']
+                )
+            else:
+                df_rec = pd.DataFrame(
+                    columns=['BL', 'BU', 'MONTH', 'SOURCE_DATA_CNT']
+                )
+
+            # --- Monitored DataFrame ---
+            if monitored:
+                df_mon = pd.DataFrame(
+                    monitored,
+                    columns=['BL', 'BU', 'MONTH', 'ENRICHED_DATA_COUNT']
+                )
+            else:
+                df_mon = pd.DataFrame(
+                    columns=['BL', 'BU', 'MONTH', 'ENRICHED_DATA_COUNT']
+                )
+
+            # --- Merge Received + Monitored ---
+            df = pd.merge(
+                df_rec,
+                df_mon,
+                on=['BL', 'BU', 'MONTH'],
+                how='outer'
+            )
+
+            # --- Add Region ---
+            df['Region'] = meta_region
+
+            combined_frames.append(df)
+
+    # --- Final validation ---
+    if not combined_frames:
+        print("❌ No CM Payments data found to combine.")
+        return
+
+    # --- Combine US + CA ---
+    final_df = pd.concat(combined_frames, ignore_index=True)
+
+    # --- Null handling ---
+    final_df['SOURCE_DATA_CNT'] = final_df['SOURCE_DATA_CNT'].fillna(0).astype(int)
+    final_df['ENRICHED_DATA_COUNT'] = final_df['ENRICHED_DATA_COUNT'].fillna(0).astype(int)
+
+    # --- Data Drop ---
+    final_df['DATA_DROP'] = (
+        final_df['SOURCE_DATA_CNT'] -
+        final_df['ENRICHED_DATA_COUNT']
+    )
+
+    # --- Rename BL → FEEDS ---
+    final_df.rename(columns={'BL': 'FEEDS'}, inplace=True)
+
+    # --- Column ordering ---
+    final_df = final_df[
+        [
+            'FEEDS',
+            'BU',
+            'MONTH',
+            'SOURCE_DATA_CNT',
+            'ENRICHED_DATA_COUNT',
+            'DATA_DROP',
+            'Region'
+        ]
+    ]
+
+    # --- Sorting ---
+    final_df.sort_values(by=['MONTH', 'BU', 'Region'], inplace=True)
+
+    # --- Write to Excel ---
+    with pd.ExcelWriter('aml_feed_results.xlsx', engine='xlsxwriter') as writer:
+        final_df.to_excel(
+            writer,
+            sheet_name='CM_US_CA',
+            index=False
+        )
+
+    print("✅ CM Payments US + CA combined successfully into aml_feed_results.xlsx")
