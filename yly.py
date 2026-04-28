@@ -1,13 +1,50 @@
 import pandas as pd
 import json
 import glob
+import cx_Oracle
+from Cyberark_password_retrieval import retrieve_password
 
-# ---------- Load Mapping Parquets ----------
+# ---------- Load Configs ----------
+with open('db_config.json') as f:
+    db_config = json.load(f)
+
+with open('Queries.json') as f:
+    queries_json = json.load(f)
+
+# ---------- DB Connection ----------
+def get_connection(db_key):
+    cfg = db_config[db_key]
+    password = retrieve_password(db_key)
+
+    dsn = cx_Oracle.makedsn(
+        cfg['hostname'],
+        cfg['port'],
+        service_name=cfg['service_name']
+    )
+
+    return cx_Oracle.connect(
+        user=cfg['username'],
+        password=password,
+        dsn=dsn
+    )
+
+# ---------- Step 0: Fetch t_mon_countries ----------
+def fetch_country_reference():
+    ref_query = queries_json['Reference_Queries']['t_mon_countries']
+    db_key = ref_query['DB_Key']
+    sql = ref_query['SQL']
+
+    conn = get_connection(db_key)
+    df = pd.read_sql(sql, conn)
+    conn.close()
+
+    df['code'] = df['code'].str.lower()
+    df.to_parquet("t_mon_countries.parquet", index=False)
+    print("Created t_mon_countries.parquet")
+
+# ---------- Load Mapping ----------
 assessment_map = pd.read_parquet("Assessment_Unit_mapping.parquet")
 assessment_map['metier_code'] = assessment_map['metier_code'].str.lower()
-
-countries_df = pd.read_parquet("t_mon_countries.parquet")
-countries_df['code'] = countries_df['code'].str.lower()
 
 # ---------- Step 1: Join Assessment Unit ----------
 def join_assessment_unit(month_file):
@@ -25,7 +62,7 @@ def join_assessment_unit(month_file):
     return new_name
 
 # ---------- Step 2: Join Country Sensitivity & MSC ----------
-def join_country_details(file_name):
+def join_country_details(file_name, countries_df):
     df = pd.read_parquet(file_name)
 
     df['Country_of_Originator'] = df['Country_of_Originator'].str.lower()
@@ -51,8 +88,16 @@ def join_country_details(file_name):
 
 # ---------- Step 3: Summarisation ----------
 def summarise_all_months():
-    files = glob.glob("risk_assessment_*_after_join.parquet")
-    full_year_df = pd.concat([join_country_details(f) for f in files])
+    fetch_country_reference()
+    countries_df = pd.read_parquet("t_mon_countries.parquet")
+
+    month_files = glob.glob("risk_assessment_*.parquet")
+    after_join_files = [join_assessment_unit(f) for f in month_files]
+
+    full_year_df = pd.concat([
+        join_country_details(f, countries_df)
+        for f in after_join_files
+    ])
 
     summary = full_year_df.groupby(
         ['Assessment_Unit', 'Jurisdiction_Risk']
@@ -77,7 +122,4 @@ def summarise_all_months():
 
 # ---------- Execute ----------
 if __name__ == "__main__":
-    month_files = glob.glob("risk_assessment_*.parquet")
-
-    after_join_files = [join_assessment_unit(f) for f in month_files]
     summarise_all_months()
