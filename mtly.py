@@ -1,6 +1,6 @@
 import json
 import pandas as pd
-import cx_Oracle
+import oracledb
 from datetime import datetime
 from Cyberark_password_retrieval import retrieve_password
 
@@ -11,48 +11,61 @@ with open('db_config.json') as f:
 with open('Queries.json') as f:
     queries_json = json.load(f)
 
-# ---------- Helper: DB Connection ----------
+# ---------- Oracle Connection using oracledb ----------
 def get_connection(db_key):
     cfg = db_config[db_key]
     password = retrieve_password(db_key)
 
-    dsn = cx_Oracle.makedsn(
-        cfg['hostname'],
-        cfg['port'],
-        service_name=cfg['service_name']
-    )
+    dsn = f"{cfg['hostname']}:{cfg['port']}/{cfg['service_name']}"
 
-    return cx_Oracle.connect(
+    conn = oracledb.connect(
         user=cfg['username'],
         password=password,
         dsn=dsn
     )
+    return conn
 
-# ---------- Execution ----------
-def run_queries_for_all_sources():
+# ---------- Extract Sources Properly ----------
+def extract_sources(sources_list):
+    # First dict contains Name_of_Sources
+    name_block = sources_list[0]
+    source_names = name_block['Name_of_Sources']
+
+    source_queries = {}
+
+    for item in sources_list[1:]:
+        if 'Source_Name' in item and item['Source_Name'] in source_names:
+            source_queries[item['Source_Name']] = {
+                'db_key': item['DB_key'],
+                'sql': item['Query']['SQL']
+            }
+
+    return source_queries
+
+# ---------- Main Execution ----------
+def run_monthly_extraction():
     month_year = datetime.now().strftime("%b_%Y")
     final_df = pd.DataFrame()
 
     for bu in queries_json['BU_BL_Mappings']:
         for key in bu:
-            sources = bu[key]['Sources']
+            sources_list = bu[key]['Sources']
 
-            for src in sources:
-                source_name = src['Source_Name']
-                sql = src['Query']['SQL']
+            sources = extract_sources(sources_list)
 
-                # Assume db key same as source or map if needed
-                conn = get_connection(source_name)
+            for src_name, details in sources.items():
+                print(f"Running query for {src_name}")
 
-                print(f"Running for {source_name}")
-                df = pd.read_sql(sql, conn)
+                conn = get_connection(details['db_key'])
+                df = pd.read_sql(details['sql'], conn)
                 conn.close()
 
                 final_df = pd.concat([final_df, df], ignore_index=True)
 
     parquet_name = f"risk_assessment_{month_year}.parquet"
     final_df.to_parquet(parquet_name, index=False)
-    print(f"Saved: {parquet_name}")
+    print(f"Saved {parquet_name}")
 
+# ---------- Execute ----------
 if __name__ == "__main__":
-    run_queries_for_all_sources()
+    run_monthly_extraction()
